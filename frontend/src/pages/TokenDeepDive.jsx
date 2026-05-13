@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Copy, Check, Share2, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Copy, Check, Share2, ShieldCheck, AlertCircle } from 'lucide-react'
 import { useTokenDetail } from '../hooks/useBirdeye'
 import RiskMeter from '../components/RiskMeter'
 import SignalBreakdown from '../components/SignalBreakdown'
@@ -50,6 +50,12 @@ export default function TokenDeepDive() {
   const level = token?.rugScore?.level ?? 'SAFE'
   const signals = token?.rugScore?.signals ?? []
   const top10Percent = token?.security?.top10HolderPercent ?? 0
+  const hasLimitedData = !token?.price && !token?.marketCap && !token?.liquidity
+  const displayName = (token?.name && token.name !== 'Unknown')
+    ? token.name
+    : (token?.symbol && token.symbol !== '???')
+      ? token.symbol
+      : truncateAddr(address)
 
   function handleShare() {
     const msg = `🚨 This token scored ${score}/100 on RugRadar: https://rugradar.vercel.app/token/${address}`
@@ -114,7 +120,7 @@ export default function TokenDeepDive() {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-primary">{token.name ?? 'Unknown'}</h1>
+            <h1 className="text-xl font-bold text-primary">{displayName}</h1>
             <span className="text-muted text-sm">{token.symbol}</span>
             <RugScoreBadge score={score} level={level} />
           </div>
@@ -130,20 +136,36 @@ export default function TokenDeepDive() {
         </div>
       </div>
 
+      {/* Data restriction notice */}
+      {hasLimitedData && (
+        <div className="flex items-start gap-2 px-4 py-3 mb-4 border border-caution/40 bg-caution/5 rounded text-xs text-caution">
+          <AlertCircle size={13} className="shrink-0 mt-0.5" />
+          <span>
+            Market data is unavailable for this token — it may be too new or not yet indexed by Birdeye.
+            Risk signals are computed from on-chain security data only.
+          </span>
+        </div>
+      )}
+
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <StatCard
-          label="Current Price"
-          value={formatPrice(token.price)}
+          label="Price"
+          value={token.price ? formatPrice(token.price) : 'N/A'}
           valueClass="text-accent"
         />
         <StatCard
           label="Market Cap"
-          value={formatDollar(token.marketCap)}
+          value={token.marketCap ? formatDollar(token.marketCap) : 'N/A'}
+        />
+        <StatCard
+          label="Liquidity"
+          value={token.liquidity ? formatDollar(token.liquidity) : 'N/A'}
+          valueClass={token.liquidity && token.liquidity < 10000 ? 'text-risk' : 'text-primary'}
         />
         <StatCard
           label="24h Volume"
-          value={formatDollar(token.volume24h)}
+          value={token.volume24h ? formatDollar(token.volume24h) : 'N/A'}
           valueClass={!token.volume24h || token.volume24h === 0 ? 'text-risk' : 'text-primary'}
         />
       </div>

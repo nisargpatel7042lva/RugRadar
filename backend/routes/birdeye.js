@@ -44,7 +44,7 @@ async function enrichBatch(tokens) {
     const liquidity = overview?.liquidity ?? token.liquidity ?? null;
     const price = overview?.price ?? token.price ?? null;
 
-    const rugScore = computeRugScore(effectiveSecurity, { ...overview, liquidity, price });
+    const rugScore = computeRugScore(effectiveSecurity, { ...overview, liquidity, price, createdAt });
 
     const enrichedToken = {
       address,
@@ -102,8 +102,8 @@ router.get('/token/:address', async (req, res) => {
     const liquidity = priceData?.liquidity ?? overview?.liquidity ?? null;
     const price = priceData?.value ?? overview?.price ?? null;
 
-    const rugScore = computeRugScore(effectiveSecurity, { ...overview, liquidity, price });
     const createdAt = effectiveSecurity?.createdAt ?? overview?.createdAt;
+    const rugScore = computeRugScore(effectiveSecurity, { ...overview, liquidity, price, createdAt });
     const ageMs = createdAt ? Date.now() - createdAt * 1000 : null;
 
     const flaggedTxs = flagSuspiciousTransactions(transactions || []);

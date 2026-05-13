@@ -29,8 +29,8 @@ export default function ShameCard({ token }) {
   return (
     <div className="relative bg-surface border border-border border-t-2 border-t-risk rounded overflow-hidden animate-fade-in-up">
       {/* RUGRADAR CALLED IT stamp */}
-      <div className="absolute top-5 right-3 -rotate-[14deg] select-none pointer-events-none z-10">
-        <div className="border-2 border-risk text-risk text-[9px] tracking-[0.2em] px-2 py-1 font-bold opacity-35 uppercase">
+      <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-10">
+        <div className="-rotate-[18deg] border-[3px] border-risk text-risk text-[15px] tracking-[0.25em] px-5 py-2.5 font-black opacity-20 uppercase rounded-sm">
           RUGRADAR CALLED IT
         </div>
       </div>
