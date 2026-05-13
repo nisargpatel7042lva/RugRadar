@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://YOUR_RAILWAY_URL/api/$1"
+      "destination": "https://rugradar-backend-xjf2.onrender.com/api/$1"
     }
   ]
 }
