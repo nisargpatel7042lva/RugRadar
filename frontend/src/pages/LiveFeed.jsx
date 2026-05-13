@@ -110,7 +110,7 @@ function MobileTokenCard({ token, expanded, onToggle }) {
 }
 
 export default function LiveFeed() {
-  const { tokens, loading, refreshing, error, lastUpdated, refresh } = useNewListings(30000)
+  const { tokens, loading, refreshing, error, lastUpdated, refresh } = useNewListings(60000)
 
   const [filterLevel, setFilterLevel] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')

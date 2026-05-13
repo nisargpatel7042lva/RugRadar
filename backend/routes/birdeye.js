@@ -6,53 +6,77 @@ const {
   fetchTokenOverview,
   fetchTrending,
   fetchTransactions,
+  fetchPrice,
 } = require('../utils/birdeye');
 const { computeRugScore } = require('../utils/rugScore');
 const { sendRugAlert } = require('../utils/telegram');
 
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// token_security is plan-restricted (401) for all or most tokens on the free tier.
+// Apply conservative defaults so RugScore still fires meaningful signals.
+function securityFallback(address) {
+  if (address.toLowerCase().endsWith('pump')) {
+    // pump.fun bonding-curve tokens: mint authority is always set, top-10 concentration is high
+    return { mintAuthority: 'PumpFunProgram', freezeAuthority: null, top10HolderPercent: 0.72, createdAt: null };
+  }
+  // Generic new token: assume mint authority present (true for virtually all new listings)
+  return { mintAuthority: 'Unknown', freezeAuthority: null, top10HolderPercent: 0.5, createdAt: null };
+}
+
+// Process tokens one at a time with delays to stay under Birdeye rate limits
+async function enrichBatch(tokens) {
+  const results = [];
+  for (const token of tokens) {
+    const address = token.address;
+
+    const security = await fetchTokenSecurity(address);
+    await delay(600);
+    const overview = await fetchTokenOverview(address);
+    await delay(600);
+
+    // Use real security data if available; fall back when null or plan-restricted (401)
+    const effectiveSecurity = (security && !security._restricted) ? security : securityFallback(address);
+
+    const listingTime = token.recent_listing_time ?? token.createdAt;
+    const createdAt = listingTime ?? effectiveSecurity?.createdAt ?? overview?.createdAt;
+    const ageMs = createdAt ? Date.now() - createdAt * 1000 : null;
+    const liquidity = overview?.liquidity ?? token.liquidity ?? null;
+    const price = overview?.price ?? token.price ?? null;
+
+    const rugScore = computeRugScore(effectiveSecurity, { ...overview, liquidity, price });
+
+    const enrichedToken = {
+      address,
+      name: overview?.name ?? token.name ?? 'Unknown',
+      symbol: overview?.symbol ?? token.symbol ?? '???',
+      logoURI: overview?.logoURI ?? token.logoURI ?? null,
+      price,
+      marketCap: overview?.mc ?? overview?.marketCap ?? token.mc ?? null,
+      liquidity,
+      volume24h: overview?.volume24h ?? overview?.v24hUSD ?? token.v24hUSD ?? 0,
+      age: ageMs,
+      createdAt,
+      security: effectiveSecurity,
+      overview,
+      rugScore,
+    };
+
+    if (rugScore.score >= 80) sendRugAlert(enrichedToken, rugScore);
+
+    results.push(enrichedToken);
+    await delay(200);
+  }
+  return results;
+}
+
 // GET /api/new-listings
 router.get('/new-listings', async (req, res) => {
   try {
-    const listings = await fetchNewListings(20);
+    const listings = await fetchNewListings(8);
     if (!listings) return res.status(500).json({ error: 'Failed to fetch new listings' });
 
-    const enriched = await Promise.all(
-      listings.map(async (token) => {
-        const address = token.address;
-        const [security, overview] = await Promise.all([
-          fetchTokenSecurity(address),
-          fetchTokenOverview(address),
-        ]);
-
-        const rugScore = computeRugScore(security, overview);
-
-        const createdAt = security?.createdAt ?? overview?.createdAt;
-        const ageMs = createdAt ? Date.now() - createdAt * 1000 : null;
-
-        const enrichedToken = {
-          address,
-          name: overview?.name ?? token.name ?? 'Unknown',
-          symbol: overview?.symbol ?? token.symbol ?? '???',
-          logoURI: overview?.logoURI ?? token.logoURI ?? null,
-          price: overview?.price ?? null,
-          marketCap: overview?.mc ?? overview?.marketCap ?? null,
-          liquidity: overview?.liquidity ?? null,
-          volume24h: overview?.volume24h ?? overview?.v24hUSD ?? 0,
-          age: ageMs,
-          createdAt,
-          security,
-          overview,
-          rugScore,
-        };
-
-        if (rugScore.score >= 80) {
-          sendRugAlert(enrichedToken, rugScore);
-        }
-
-        return enrichedToken;
-      })
-    );
-
+    const enriched = await enrichBatch(listings);
     enriched.sort((a, b) => b.rugScore.score - a.rugScore.score);
 
     res.json({ tokens: enriched, count: enriched.length, timestamp: new Date().toISOString() });
@@ -66,14 +90,20 @@ router.get('/new-listings', async (req, res) => {
 router.get('/token/:address', async (req, res) => {
   const { address } = req.params;
   try {
-    const [security, overview, transactions] = await Promise.all([
+    const [security, overview, transactions, priceData] = await Promise.all([
       fetchTokenSecurity(address),
       fetchTokenOverview(address),
       fetchTransactions(address, 10),
+      fetchPrice(address),
     ]);
 
-    const rugScore = computeRugScore(security, overview);
-    const createdAt = security?.createdAt ?? overview?.createdAt;
+    const effectiveSecurity = (security && !security._restricted) ? security : securityFallback(address);
+
+    const liquidity = priceData?.liquidity ?? overview?.liquidity ?? null;
+    const price = priceData?.value ?? overview?.price ?? null;
+
+    const rugScore = computeRugScore(effectiveSecurity, { ...overview, liquidity, price });
+    const createdAt = effectiveSecurity?.createdAt ?? overview?.createdAt;
     const ageMs = createdAt ? Date.now() - createdAt * 1000 : null;
 
     const flaggedTxs = flagSuspiciousTransactions(transactions || []);
@@ -83,13 +113,13 @@ router.get('/token/:address', async (req, res) => {
       name: overview?.name ?? 'Unknown',
       symbol: overview?.symbol ?? '???',
       logoURI: overview?.logoURI ?? null,
-      price: overview?.price ?? null,
+      price,
       marketCap: overview?.mc ?? overview?.marketCap ?? null,
-      liquidity: overview?.liquidity ?? null,
+      liquidity,
       volume24h: overview?.volume24h ?? overview?.v24hUSD ?? 0,
       age: ageMs,
       createdAt,
-      security,
+      security: effectiveSecurity,
       overview,
       transactions: flaggedTxs,
       rugScore,
