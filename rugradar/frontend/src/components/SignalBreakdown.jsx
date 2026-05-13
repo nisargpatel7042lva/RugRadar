@@ -18,7 +18,7 @@ export default function SignalBreakdown({ signals = [], score, level }) {
             key={i}
             className={`px-3 py-2 rounded border animate-fade-in-up transition-all ${
               sig.triggered
-                ? 'border-risk/40 bg-risk/8'
+                ? 'border-risk/40 bg-risk/10'
                 : 'border-border/40 opacity-70'
             }`}
             style={{ animationDelay: `${i * 70}ms`, animationFillMode: 'both' }}
