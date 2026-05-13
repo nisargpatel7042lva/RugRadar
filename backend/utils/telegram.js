@@ -31,7 +31,7 @@ async function sendRugAlert(tokenData, rugScoreResult) {
     `Liquidity: $${Number(liquidity).toLocaleString()}`,
     `Age: ${ageFmt}`,
     ``,
-    `🔗 rugradar.vercel.app/token/${address}`,
+    `🔗 rugradar-birdeye.vercel.app/token/${address}`,
   ].join('\n');
 
   try {
