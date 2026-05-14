@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Flame, Users, Snowflake, Droplets, Clock, BarChart2 } from 'lucide-react'
 import RugScoreBadge from './RugScoreBadge'
@@ -5,11 +6,22 @@ import { formatAge, formatDollar, truncateAddr } from '../utils/format'
 
 const SIGNAL_ICONS = [Flame, Users, Snowflake, Droplets, Clock, BarChart2]
 
-function FallbackLogo({ symbol }) {
+function TokenLogo({ logoURI, symbol, sizeClass = 'w-7 h-7' }) {
+  const [error, setError] = useState(false)
+  if (!logoURI || error) {
+    return (
+      <div className={`${sizeClass} rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold shrink-0`}>
+        {symbol?.[0] ?? '?'}
+      </div>
+    )
+  }
   return (
-    <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold shrink-0">
-      {symbol?.[0] ?? '?'}
-    </div>
+    <img
+      src={logoURI}
+      alt={symbol}
+      className={`${sizeClass} rounded-full bg-surface shrink-0 object-cover`}
+      onError={() => setError(true)}
+    />
   )
 }
 
@@ -33,16 +45,7 @@ export default function TokenRow({ token, expanded, onToggle }) {
         {/* TOKEN */}
         <td className="py-3 px-3">
           <div className="flex items-center gap-2">
-            {logoURI ? (
-              <img
-                src={logoURI}
-                alt={symbol}
-                className="w-7 h-7 rounded-full bg-surface shrink-0 object-cover"
-                onError={(e) => { e.currentTarget.style.display = 'none' }}
-              />
-            ) : (
-              <FallbackLogo symbol={symbol} />
-            )}
+            <TokenLogo logoURI={logoURI} symbol={symbol} />
             <div className="min-w-0">
               <div className="font-bold text-sm text-primary truncate max-w-[130px]">
                 {name ?? 'Unknown'}

@@ -13,15 +13,18 @@ const { sendRugAlert } = require('../utils/telegram');
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// token_security is plan-restricted (401) for all or most tokens on the free tier.
-// Apply conservative defaults so RugScore still fires meaningful signals.
+// In-memory store for tokens that scored >= 80 (cleared on restart, acceptable for demo)
+const rugDetections = [];
+const detectedAddresses = new Set();
+
+// token_security is plan-restricted (401) for all tokens on the free tier.
 function securityFallback(address) {
   if (address.toLowerCase().endsWith('pump')) {
     // pump.fun bonding-curve tokens: mint authority is always set, top-10 concentration is high
     return { mintAuthority: 'PumpFunProgram', freezeAuthority: null, top10HolderPercent: 0.72, createdAt: null };
   }
-  // Generic new token: assume mint authority present (true for virtually all new listings)
-  return { mintAuthority: 'Unknown', freezeAuthority: null, top10HolderPercent: 0.5, createdAt: null };
+  // Security data unavailable — don't assume anything; score only from observable market data
+  return { mintAuthority: null, freezeAuthority: null, top10HolderPercent: 0, createdAt: null };
 }
 
 // Process tokens one at a time with delays to stay under Birdeye rate limits
@@ -62,7 +65,25 @@ async function enrichBatch(tokens) {
       rugScore,
     };
 
-    if (rugScore.score >= 80) sendRugAlert(enrichedToken, rugScore);
+    if (rugScore.score >= 80) {
+      sendRugAlert(enrichedToken, rugScore);
+      if (!detectedAddresses.has(address)) {
+        detectedAddresses.add(address);
+        rugDetections.unshift({
+          name: enrichedToken.name,
+          symbol: enrichedToken.symbol,
+          address,
+          logoURI: enrichedToken.logoURI ?? null,
+          rugScoreAtFlag: rugScore.score,
+          flaggedAt: new Date().toISOString(),
+          timeToRug: 'Monitoring...',
+          timeToRugMinutes: null,
+          liquidityAtFlag: enrichedToken.liquidity ?? 0,
+          percentLoss: 100,
+          triggerSignals: rugScore.signals.filter((s) => s.triggered).map((s) => s.label),
+        });
+      }
+    }
 
     results.push(enrichedToken);
     await delay(200);
@@ -128,6 +149,11 @@ router.get('/token/:address', async (req, res) => {
     console.error(`[Route] /token/${address} error:`, err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /api/hall-of-shame
+router.get('/hall-of-shame', (req, res) => {
+  res.json({ tokens: rugDetections, count: rugDetections.length });
 });
 
 // GET /api/trending

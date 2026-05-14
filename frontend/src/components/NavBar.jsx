@@ -16,9 +16,12 @@ export default function NavBar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-surface border-b border-border h-16 flex items-center px-4 md:px-6">
       {/* Left: Logo */}
       <div className="flex items-center gap-2 min-w-fit">
-        <span className="text-risk font-bold text-lg tracking-tight">
-          ☢ RUGRADAR
-        </span>
+        <img
+          src="/rugradarlogo.webp"
+          alt="RugRadar"
+          className="h-9 w-auto object-contain"
+        />
+        <span className="text-risk font-bold text-lg tracking-tight">RUGRADAR</span>
         <span className="blink text-risk font-bold">_</span>
       </div>
 

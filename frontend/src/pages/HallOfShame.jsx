@@ -1,17 +1,19 @@
 import { shameData } from '../utils/shameData'
 import ShameCard from '../components/ShameCard'
 import { formatDollar } from '../utils/format'
+import { useHallOfShame } from '../hooks/useBirdeye'
 
 function computeStats(data) {
   const total = data.length
-  const avgMinutes = Math.round(
-    data.reduce((s, t) => s + t.timeToRugMinutes, 0) / total
-  )
+  const timed = data.filter((t) => t.timeToRugMinutes != null)
+  const avgMinutes = timed.length
+    ? Math.round(timed.reduce((s, t) => s + t.timeToRugMinutes, 0) / timed.length)
+    : 0
   const avgTime =
     avgMinutes >= 60
       ? `${Math.floor(avgMinutes / 60)}h ${avgMinutes % 60}m`
       : `${avgMinutes}m`
-  const totalLost = data.reduce((s, t) => s + t.liquidityAtFlag, 0)
+  const totalLost = data.reduce((s, t) => s + (t.liquidityAtFlag ?? 0), 0)
   const avgScore = Math.round(
     data.reduce((s, t) => s + t.rugScoreAtFlag, 0) / total
   )
@@ -28,7 +30,16 @@ function StatBox({ label, value, valueClass = 'text-primary' }) {
 }
 
 export default function HallOfShame() {
-  const { total, avgTime, totalLost, avgScore } = computeStats(shameData)
+  const { liveTokens } = useHallOfShame()
+
+  // Merge live detections (front) with static data (back), deduplicated by address
+  const liveAddresses = new Set(liveTokens.map((t) => t.address))
+  const allData = [
+    ...liveTokens,
+    ...shameData.filter((t) => !liveAddresses.has(t.address)),
+  ]
+
+  const { total, avgTime, totalLost, avgScore } = computeStats(allData)
 
   const tweetText = `🚨 @RugRadar caught ${total} rug pulls before they happened.\n\n${formatDollar(totalLost)} in liquidity protected.\n\nCheck if YOUR tokens are safe: https://rugradar.vercel.app\n\n#BirdeyeAPI @birdeye_data #Solana`
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`
@@ -72,7 +83,7 @@ export default function HallOfShame() {
 
       {/* Cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
-        {shameData.map((token) => (
+        {allData.map((token) => (
           <ShameCard key={token.address} token={token} />
         ))}
       </div>

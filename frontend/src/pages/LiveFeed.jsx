@@ -9,6 +9,25 @@ import TokenRow from '../components/TokenRow'
 import RugScoreBadge from '../components/RugScoreBadge'
 import { formatAge, formatDollar, truncateAddr } from '../utils/format'
 
+function MobileTokenLogo({ logoURI, symbol }) {
+  const [error, setError] = useState(false)
+  if (!logoURI || error) {
+    return (
+      <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold shrink-0">
+        {symbol?.[0] ?? '?'}
+      </div>
+    )
+  }
+  return (
+    <img
+      src={logoURI}
+      alt={symbol}
+      className="w-9 h-9 rounded-full bg-surface shrink-0 object-cover"
+      onError={() => setError(true)}
+    />
+  )
+}
+
 const FILTER_LEVELS = ['ALL', 'HIGH RISK', 'CAUTION', 'SAFE']
 const SORT_OPTIONS = [
   { value: 'score', label: 'RugScore' },
@@ -42,13 +61,7 @@ function MobileTokenCard({ token, expanded, onToggle }) {
         className="w-full flex items-center gap-3 p-3 text-left min-h-[56px]"
         onClick={onToggle}
       >
-        {logoURI ? (
-          <img src={logoURI} alt={symbol} className="w-9 h-9 rounded-full bg-surface shrink-0" onError={e => { e.currentTarget.style.display = 'none' }} />
-        ) : (
-          <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold shrink-0">
-            {symbol?.[0] ?? '?'}
-          </div>
-        )}
+        <MobileTokenLogo logoURI={logoURI} symbol={symbol} />
         <div className="flex-1 min-w-0">
           <div className="font-bold text-sm text-primary truncate">{name ?? 'Unknown'}</div>
           <div className="text-[11px] text-muted">{symbol} · {truncateAddr(address)}</div>

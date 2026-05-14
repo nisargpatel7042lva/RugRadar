@@ -94,6 +94,28 @@ export function useTokenDetail(address) {
   return { token, loading, error }
 }
 
+export function useHallOfShame() {
+  const [liveTokens, setLiveTokens] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = () =>
+      axios
+        .get(`${API_BASE}/hall-of-shame`)
+        .then((res) => {
+          setLiveTokens(res.data.tokens || [])
+          setLoading(false)
+        })
+        .catch(() => setLoading(false))
+
+    fetch()
+    const interval = setInterval(fetch, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return { liveTokens, loading }
+}
+
 export function useTrending() {
   const [trending, setTrending] = useState([])
   const [loading, setLoading] = useState(true)
